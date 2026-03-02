@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Settings, Play, CheckCircle2, Loader2, Leaf, Activity } from 'lucide-react';
+import { Upload, FileText, Settings, Play, CheckCircle2, Loader2, Leaf, Activity, Edit3, Eye } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { extractTextFromPDF, fileToBase64 } from './lib/pdf';
 import { parsePipelineYaml, runTask, PipelineConfig } from './lib/orchestrator';
-import pipelineYamlRaw from './pipeline.yaml?raw';
+import agentsYamlRaw from './agents.yaml?raw';
 import skillMdRaw from './SKILL.md?raw';
 
 type IngestionMode = 'A' | 'B';
@@ -17,6 +17,7 @@ export default function App() {
   const [currentTask, setCurrentTask] = useState<string | null>(null);
   const [outputs, setOutputs] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,7 +34,7 @@ export default function App() {
     setActiveTab('overview');
     
     try {
-      const config = parsePipelineYaml(pipelineYamlRaw);
+      const config = parsePipelineYaml(agentsYamlRaw);
       let documentContext: string | { inlineData: { data: string; mimeType: string } };
 
       setCurrentTask('ingestion');
@@ -54,27 +55,26 @@ export default function App() {
 
       const currentOutputs: Record<string, string> = {};
 
-      for (const task of config.tasks) {
-        setCurrentTask(task.id);
-        setActiveTab(task.id);
+      for (const stage of config.pipeline.stages) {
+        setCurrentTask(stage.id);
+        setActiveTab(stage.id);
         
         let taskOutput = '';
         
         await runTask(
-          task,
-          config,
+          stage,
           skillMdRaw,
           documentContext,
           currentOutputs,
           (text) => {
             taskOutput = text;
-            setOutputs(prev => ({ ...prev, [task.id]: text }));
+            setOutputs(prev => ({ ...prev, [stage.id]: text }));
           }
         );
         
-        currentOutputs[task.id] = taskOutput;
-        setMana(prev => Math.max(0, prev - 5));
-        setStress(prev => Math.min(100, prev + 10));
+        currentOutputs[stage.id] = taskOutput;
+        setMana(prev => Math.max(0, prev - 4));
+        setStress(prev => Math.min(100, prev + 4));
       }
 
       setCurrentTask(null);
@@ -229,19 +229,24 @@ export default function App() {
                 <Activity className="w-5 h-5 text-emerald-500" />
                 Pipeline Status
               </h3>
-              <div className="space-y-3">
-                {parsePipelineYaml(pipelineYamlRaw).tasks.map(task => (
-                  <div key={task.id} className="flex items-center gap-3">
-                    {outputs[task.id] ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    ) : currentTask === task.id ? (
-                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full border-2 border-emerald-200" />
-                    )}
-                    <span className={`text-sm ${currentTask === task.id ? 'font-medium text-emerald-900' : 'text-emerald-600'}`}>
-                      {task.id}
-                    </span>
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {parsePipelineYaml(agentsYamlRaw).pipeline.stages.map(stage => (
+                  <div key={stage.id} className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {outputs[stage.id] ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      ) : currentTask === stage.id ? (
+                        <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border-2 border-emerald-200" />
+                      )}
+                    </div>
+                    <div>
+                      <span className={`text-sm block ${currentTask === stage.id ? 'font-medium text-emerald-900' : 'text-emerald-600'}`}>
+                        {stage.icon} {stage.agent}
+                      </span>
+                      <span className="text-xs text-emerald-400">{stage.phase}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -273,7 +278,7 @@ export default function App() {
             </div>
 
             {/* Content */}
-            <div className="p-8 flex-1 overflow-y-auto">
+            <div className="p-8 flex-1 overflow-y-auto flex flex-col">
               {activeTab === 'overview' ? (
                 <div className="h-full flex flex-col items-center justify-center text-center text-emerald-600">
                   <Leaf className="w-16 h-16 text-emerald-200 mb-4" />
@@ -284,8 +289,32 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                <div className="prose prose-emerald max-w-none">
-                  <Markdown>{outputs[activeTab] || 'Processing...'}</Markdown>
+                <div className="flex-1 flex flex-col">
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={() => setIsEditing(!isEditing)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors"
+                    >
+                      {isEditing ? (
+                        <><Eye className="w-4 h-4" /> Preview</>
+                      ) : (
+                        <><Edit3 className="w-4 h-4" /> Edit Report</>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {isEditing ? (
+                    <textarea
+                      value={outputs[activeTab] || ''}
+                      onChange={(e) => setOutputs(prev => ({ ...prev, [activeTab]: e.target.value }))}
+                      className="flex-1 w-full p-4 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none font-mono text-sm text-emerald-900"
+                      placeholder="Report content..."
+                    />
+                  ) : (
+                    <div className="prose prose-emerald max-w-none">
+                      <Markdown>{outputs[activeTab] || 'Processing...'}</Markdown>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

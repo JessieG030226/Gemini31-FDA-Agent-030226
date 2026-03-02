@@ -3,22 +3,20 @@ import yaml from 'js-yaml';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-export interface PipelineTask {
+export interface PipelineStage {
   id: string;
-  description: string;
+  agent: string;
+  icon: string;
+  task: string;
+  status: string;
+  phase: string;
 }
 
 export interface PipelineConfig {
-  name: string;
-  version: string;
-  description: string;
-  orchestrator: {
-    provider: string;
-    model: string;
-    temperature: number;
-    max_tokens: number;
+  pipeline: {
+    version: string;
+    stages: PipelineStage[];
   };
-  tasks: PipelineTask[];
 }
 
 export function parsePipelineYaml(yamlString: string): PipelineConfig {
@@ -26,8 +24,7 @@ export function parsePipelineYaml(yamlString: string): PipelineConfig {
 }
 
 export async function runTask(
-  task: PipelineTask,
-  config: PipelineConfig,
+  stage: PipelineStage,
   skillMd: string,
   documentContext: string | { inlineData: { data: string; mimeType: string } },
   previousOutputs: Record<string, string>,
@@ -40,8 +37,9 @@ ${skillMd}
 Previous Task Outputs:
 ${JSON.stringify(previousOutputs, null, 2)}
 
-Current Task: ${task.id}
-Description: ${task.description}
+Current Agent: ${stage.icon} ${stage.agent}
+Phase: ${stage.phase}
+Task: ${stage.task}
 
 Please execute this task based on the provided document context.
 Output your reasoning in <thinking> tags first, then the final Markdown report.
@@ -59,10 +57,10 @@ Output your reasoning in <thinking> tags first, then the final Markdown report.
   contents.push({ text: prompt });
 
   const responseStream = await ai.models.generateContentStream({
-    model: config.orchestrator.model || 'gemini-3-flash-preview',
+    model: 'gemini-3-flash-preview',
     contents: contents,
     config: {
-      temperature: config.orchestrator.temperature || 0.05,
+      temperature: 0.05,
     }
   });
 
