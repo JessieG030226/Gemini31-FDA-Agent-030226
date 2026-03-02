@@ -1,0 +1,26 @@
+# FDA 510(k) Review Pipeline Orchestration v4.0 (Flower Edition)
+# Orchestrator: Anthropic Claude 3.5 Sonnet (Replaced with Gemini 3 Flash Preview as per spec)
+# Purpose: Define complete agentic flow for 510(k) preliminary review
+
+name: "fda_510k_preliminary_review_orchestration"
+version: "4.0"
+description: "End-to-end RTA and Preliminary Substantive Review"
+
+orchestrator:
+  provider: "google"
+  model: "gemini-3-flash-preview"
+  temperature: 0.05
+  max_tokens: 8192
+
+tasks:
+  - id: "detect_device_metadata"
+    description: "Identify Product Code, Regulation Number, Device Class, and Predicate Device from the submission."
+    
+  - id: "rta_acceptance_audit"
+    description: "Evaluate submission against current FDA Refuse to Accept (RTA) policy. Flag missing elements with page numbers."
+    
+  - id: "se_comparator_analysis"
+    description: "Generate Substantial Equivalence comparison table between subject and predicate device."
+    
+  - id: "generate_preliminary_summary"
+    description: "Create a one-page executive summary with Green/Yellow/Red color coding."
