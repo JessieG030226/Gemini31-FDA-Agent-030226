@@ -25,6 +25,7 @@ export function parsePipelineYaml(yamlString: string): PipelineConfig {
 
 export async function runTask(
   stage: PipelineStage,
+  model: string,
   skillMd: string,
   documentContext: string | { inlineData: { data: string; mimeType: string } },
   previousOutputs: Record<string, string>,
@@ -57,7 +58,7 @@ Output your reasoning in <thinking> tags first, then the final Markdown report.
   contents.push({ text: prompt });
 
   const responseStream = await ai.models.generateContentStream({
-    model: 'gemini-3-flash-preview',
+    model: model,
     contents: contents,
     config: {
       temperature: 0.05,
